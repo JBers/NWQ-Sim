@@ -57,3 +57,28 @@ target_link_libraries(test_itensor
 )
 # —————————————————————————————————————————————————————
 
+if(CUTENSOR_FOUND AND CUTENSORNET_FOUND)
+  target_include_directories(nwq_qasm PRIVATE
+    ${CUTENSOR_INCLUDE_DIR}
+    ${CUTENSORNET_INCLUDE_DIR}
+  )
+  target_link_libraries(nwq_qasm PRIVATE
+    ${CUTENSOR_LIBRARY}
+    ${CUTENSORNET_LIBRARY}
+  )
+  target_compile_definitions(nwq_qasm PUBLIC CUTENSOR_ENABLED CUTENSORNET_ENABLED)
+endif()
+
+if(CUTENSOR_FOUND AND CUTENSORNET_FOUND)
+  add_executable(test_cutensornet_minimal test_cutensornet_minimal.cpp)
+
+  target_include_directories(test_cutensornet_minimal PRIVATE
+    ${CUTENSOR_INCLUDE_DIR}
+    ${CUTENSORNET_INCLUDE_DIR}
+  )
+
+  target_link_libraries(test_cutensornet_minimal PRIVATE
+    ${CUTENSOR_LIBRARY}
+    ${CUTENSORNET_LIBRARY}
+  )
+endif()

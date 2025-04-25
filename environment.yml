@@ -1,0 +1,11 @@
+name: tensor-net
+channels:
+  - conda-forge
+dependencies:
+  - cudatoolkit
+  - cuquantum
+  - cutensor
+  - cutensornet
+  - custatevec
+  - cudensitymat
+

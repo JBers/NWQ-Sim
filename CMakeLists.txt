@@ -78,6 +78,47 @@ else()
     set(nvshmem_found_str "N/A")
 endif()
 
+# — cuTENSOR / cuTensorNet —————————————————————————————————————
+set(CUTENSOR_ROOT   $ENV{CUTENSOR_ROOT})
+set(CUTENSORNET_ROOT $ENV{CUTENSORNET_ROOT})
+
+# Locate cuTENSOR
+find_path(CUTENSOR_INCLUDE_DIR
+  NAMES cutensor.h
+  HINTS ${CUTENSOR_ROOT}/include
+)
+find_library(CUTENSOR_LIBRARY
+  NAMES cutensor
+  HINTS ${CUTENSOR_ROOT}/lib
+)
+
+# Locate cuTensorNet
+find_path(CUTENSORNET_INCLUDE_DIR
+  NAMES cutensornet.h
+  HINTS ${CUTENSORNET_ROOT}/include
+)
+find_library(CUTENSORNET_LIBRARY
+  NAMES cutensornet
+  HINTS ${CUTENSORNET_ROOT}/lib
+)
+
+# Fail early if not found
+if(NOT CUTENSOR_INCLUDE_DIR OR NOT CUTENSOR_LIBRARY)
+  message(FATAL_ERROR "cuTENSOR not found in ${CUTENSOR_ROOT}")
+endif()
+if(NOT CUTENSORNET_INCLUDE_DIR OR NOT CUTENSORNET_LIBRARY)
+  message(FATAL_ERROR "cuTensorNet not found in ${CUTENSORNET_ROOT}")
+endif()
+
+# Make variables available to all subdirectories
+set(CUTENSOR_FOUND       TRUE  CACHE BOOL "" FORCE)
+set(CUTENSORNET_FOUND    TRUE  CACHE BOOL "" FORCE)
+set(CUTENSOR_INCLUDE_DIR ${CUTENSOR_INCLUDE_DIR} CACHE PATH "" FORCE)
+set(CUTENSOR_LIBRARY     ${CUTENSOR_LIBRARY}     CACHE FILEPATH "" FORCE)
+set(CUTENSORNET_INCLUDE_DIR ${CUTENSORNET_INCLUDE_DIR} CACHE PATH "" FORCE)
+set(CUTENSORNET_LIBRARY  ${CUTENSORNET_LIBRARY}  CACHE FILEPATH "" FORCE)
+# ————————————————————————————————————————————————————————————————
+
 
 # Link Itensor
 set(ITENSOR_ROOT "/global/homes/d/dogskep/JonForkNWQ-Sim/itensor"
