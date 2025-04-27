@@ -208,7 +208,33 @@ namespace NWQSim
 
         IdxType* measure_all(IdxType repetition) override
         {
-            throw std::runtime_error("TN_CUDA::get_real not implemented");
+            SAFE_FREE_HOST(results);
+            SAFE_ALOC_HOST(results, sizeof(IdxType) * repetition);
+
+            // create and configure the sampler
+            HANDLE_CUTN_ERROR(cutensornetCraeteSampler(
+                cutnHandle_, quantumState_,
+                n_qubits, nullptr,
+                &sampler_));
+
+            int32_t numHyper = 8;
+            HANDLE_CUTN_ERROR(cutensornetSamplerConfigure(
+                cutnHandle_, sampler_,
+                CUTENSORNET_SAMPLER__CONFIG_NUM_HYPER_SAMPLES,
+                &numHyper, sizeof(numHyper)));
+
+            // prepare and sample
+            HANDLE_CUTN_ERROR(cutensornetSamplerPrepare(
+                cutnHandle_, sampler_,
+                scratchSize_, workDesc_, 0x0));
+            HANDLE_CUTN_ERROR(cutensornetSamplerSample(
+                cutnHandle_, sampler_,
+                repetition,
+                workDesc_,
+                results,
+                0));
+
+            return results;
         }
 
         // Override pure-virtual stubs from QuantumState
