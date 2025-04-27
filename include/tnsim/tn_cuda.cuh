@@ -30,6 +30,9 @@
   { printf("cuTensorNet error %s in %s:%d\n", cutensornetGetErrorString(err), __FILE__, __LINE__); fflush(stdout); std::abort(); } \
 }
 
+// API Calls for cutensornet can be found here:
+// https://docs.nvidia.com/cuda/cuquantum/latest/cutensornet/api/functions.html
+
 namespace NWQSim
 {
     class TN_CUDA : public QuantumState
@@ -83,8 +86,10 @@ namespace NWQSim
             if (workDesc_)
                 HANDLE_CUTN_ERROR(cutensornetDestroyWorkspaceDescriptor(workDesc_));
             if (quantumState_)
+            {
                 HANDLE_CUTN_ERROR(cutensornetDestroyState(cutnHandle_, quantumState_));
                 HANDLE_CUTN_ERROR(cutensornetDestroy(cutnHandle_));
+            }
 
         HANDLE_CUDA_ERROR(cudaFree(d_scratch_));
         for (auto p : d_mpsTensor_)
@@ -115,7 +120,80 @@ namespace NWQSim
 
         void sim(std::shared_ptr<NWQSim::Circuit> circuit) override
         {
+            assert(circuit->num_qubits() == n_qubits);
 
+            // use statevector fuse_circuits for nwo)
+            auto gates = fuse_circuits_sv(circuit);
+            for (auto const& g : gates)
+            {
+                if (g.op_name == OP::C1)
+                {
+                    HANDLE_CUTN_ERROR(cutensornetStateApplyTensorOperator(
+                        cutnHandle_, quantumState_,
+                        1, modes,
+                        null, nullptr,
+                        1, 0, 1, nullptr));
+                }
+                else if (g.op_name == OP::C2)
+                {
+                    HANDLE_CUTN_ERROR(cutensornetStateApplyTensorOperator(
+                        cutnHandle_, quantumState_,
+                        2, modes,
+                        null, nullptr,
+                        1, 0, 1, nullptr));
+                }
+            }
+
+            // finalize MPS
+            HANDLE_CUTN_ERROR(cutensornetStateFinalizeMPS(
+                cutnHandle_, quantumState_,
+                CUTENSORNET_BOUNDARY_CONDITION_OPEN,
+                extentsPtr_.data(), nullptr));
+
+            // setup SVD
+            HANDLE_CUTN_ERROR(cutensornetStateConfigure(
+                cutnHandle_, quantumState_,
+                CUTENSOR_STATE_CONFIG_MPS_SVD_ALGO,
+                &algo, sizeof(algo)));
+
+            // prepare factorizatoin
+            HANDLE_CUTN_ERROR(cutensornetStatePrepare(
+                cutnHandle_, quantumState_,
+                scratchSize_, workDesc_, 0x0));
+
+            // workspace memory
+            int64_t reqSize = 0;
+            HANDLE_CUTN_ERROR(cutensornetWorkspaceGetMemorySize(
+                cutnHandle_, workDesc_,
+                CUTENSORNET_WORKSIZE_PREF_RECOMMENDED,
+                CUTENSORNET_MEMSPACE_DEVICE,
+                CUTENSORNET_WORKSPACE_SCRATCH,
+                &reqSize));
+            HANDLE_CUTN_ERROR(cutensornetWorkspaceSetMemory(
+                cutnHandle_, workDesc_,
+                CUTENSORNET_MEMSPACE_DEVICE,
+                CUTENSORNET_WORKSPACE_SCRATCH,
+                d_scratch_, reqSize));
+
+            // set MPS tensor buffers
+            d_mpsTensors_.resize(n_qubits);
+            for (int i = 0; i < n_qubits; ++i)
+            {
+                int64_t elems = 1;
+                for (auto e : extents_[i])
+                    elems *= e;`
+                
+                HANDLE_CUDA_ERROR(cudaMalloc(
+                    &d_mpsTensor_[i],
+                    elems * sizeof(std::complex<double>)));
+            }
+
+            // compute MPS
+            HANDLE_CUTN_ERROR(cutensornetStateCompute(
+                cutnHandle_, quantumState_,
+                workDesc_,
+                extentsPtr_.data(), nullptr,
+                d_mpsTensor_.data(), 0));
         }
 
         IdxType* get_results() override
