@@ -239,10 +239,20 @@ namespace NWQSim
 
     protected:
         IdxType n_qubits;
-        IdxType n_cpu;
         IdxType* results = NULL;
-        std::mt19937                            rng;
-        std::uniform_real_distribution<ValType> uni_dist;
+        std::mt19937 rng;
+
+        cutensornetHandle_t cutnHandle_{};
+        cutensornetState_t quantumState_{};
+        cutensornetWorkspaceDescriptor_t workDesc_{};
+        cutensornetStateSapler_t sampler_{};
+
+        std::vector<std::vector<int64_t>> extents_;
+        std::vector<int64_t*> extentsPtr_;
+        std::vector<void*> d_mpsTensor_;
+
+        void* d_scratch_{nullptr};
+        size_t scratchSize_{0};
     };
 
 } // namespace NWQSim
