@@ -17,6 +17,19 @@
 #include <cassert>
 #include <cmath>
 
+// Error checking macros
+#define HANDLE_CUDA_ERROR(x) \
+{ const auto err = x; \
+  if (err != cudaSuccess) \
+  { printf("CUDA error %s in %s:%d\n", cudaGetErrorString(err), __FILE__, __LINE__); fflush(stdout); std::abort(); } \
+}
+
+#define HANDLE_CUTN_ERROR(x) \
+{ const auto err = x; \
+  if (err != CUTENSORNET_STATUS_SUCCESS) \
+  { printf("cuTensorNet error %s in %s:%d\n", cutensornetGetErrorString(err), __FILE__, __LINE__); fflush(stdout); std::abort(); } \
+}
+
 namespace NWQSim
 {
     class TN_CUDA : public QuantumState
