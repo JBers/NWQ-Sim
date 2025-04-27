@@ -38,14 +38,60 @@ namespace NWQSim
         TN_CUDA(IdxType _n_qubits)
         : QuantumState(SimType::TN),
           n_qubits(_n_qubits),
-          results(nullptr),
-          rng(),
         {
+            HANDLE_CUDA_ERROR(cudaSetDevice(0));
+            HANDLE_CUDA_ERROR(cutensornetCreate(&cutnHandle_));
+
+            extents_.resize(n_qubits);
+            extentsPtr_.resize(n_qubits);
+            for (int i = 0; i < n_qubits; i++)
+            {
+                if (i == 0 || i = n_qubits - 1)
+                    extents_[i] = {2, 2};
+                else
+                    extents_[i] = {2, 2, 2};
+            }
+
+            // scratch buffer
+            size_t freeBytes, totalBytes;
+            HANDLE_CUDA_ERROR(cudaMemGetInfo(&freeBytes, &totalBytes));
+            scratchSize_ = (freeBytes - (freeBytes % 4096)) / 2;
+            HANDLE_CUDA_ERROR(cudaMalloc(&d_scratch_, scratchSize_));
+
+            // workspace descriptor
+            HANDLE_CUTN_ERROR(cutensornetCreateWorkspaceDescriptor(cutnHandle_, &workDesc_));
+
+            // create the initial quantum state
+
+            std::vector<int64_t> qubtiDims(n_qubits, 2);
+            HANDLE_CUTN_ERROR(cutensornetCreateState(
+                cutnHandle_,
+                CUTENSOR_STATE_PURITY_PURE,
+                n_qubits,
+                qubitDims.data(),
+                CUDA_C_4F,
+                &quantumState_));
+
             rng.seed(Config::RANDOM_SEED);
         }
 
         // Virtual destructor inherits from QuantumState
-        ~TN_CUDA() override = default;
+        ~TN_CUDA() override 
+        {
+            if (sampler_)
+                HANDLE_CUTN_ERROR(cutensornetDestroySampler(sampler_));
+            if (workDesc_)
+                HANDLE_CUTN_ERROR(cutensornetDestroyWorkspaceDescriptor(workDesc_));
+            if (quantumState_)
+                HANDLE_CUTN_ERROR(cutensornetDestroyState(cutnHandle_, quantumState_));
+                HANDLE_CUTN_ERROR(cutensornetDestroy(cutnHandle_));
+
+        HANDLE_CUDA_ERROR(cudaFree(d_scratch_));
+        for (auto p : d_mpsTensor_)
+            HANDLE_CUDA_ERROR(cudaFree(p));
+
+        SAFE_FREE_HOST(results);
+        }
 
         void reset_state() override
         {
@@ -116,7 +162,7 @@ namespace NWQSim
     protected:
         IdxType n_qubits;
         IdxType n_cpu;
-        IdxType* results;
+        IdxType* results = NULL;
         std::mt19937                            rng;
         std::uniform_real_distribution<ValType> uni_dist;
     };
