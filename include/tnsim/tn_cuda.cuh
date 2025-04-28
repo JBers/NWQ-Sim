@@ -103,7 +103,25 @@ namespace NWQSim
 
         void reset_state() override
         {
-            throw std::runtime_error("TN_CUDA::reset_state not implemented");
+            extents_.resize(n_qubits);
+            extentsPtr_.resize(n_qubits);
+            for (int i = 0; i < n_qubits; i++)
+            {
+                if (i == 0 || i == n_qubits - 1)
+                    extents_[i] = {2, 2};
+                else
+                    extents_[i] = {2, 2, 2};
+            }
+
+            std::vector<int64_t> qubitDims(n_qubits, 2);
+            HANDLE_CUTN_ERROR(cutensornetCreateState(
+                cutnHandle_,
+                CUTENSORNET_STATE_PURITY_PURE,
+                n_qubits,
+                qubitDims.data(),
+                CUDA_C_64F,
+                &quantumState_));
+
         }
 
         void set_seed(IdxType seed) override
@@ -113,12 +131,12 @@ namespace NWQSim
 
         void set_initial(std::string fpath, std::string format) override
         {
-            std::cout << "This function was called" << std::endl;
+            std::cout << "set function was called" << std::endl;
         }
 
         void dump_res_state(std::string outpath) override
         {
-            throw std::runtime_error("TN_CUDA::dump_res_state not implemented");
+            std::cout << "dump function was called" << std::endl;
         }
 
         void sim(std::shared_ptr<NWQSim::Circuit> circuit) override
