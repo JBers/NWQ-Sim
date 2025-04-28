@@ -17,6 +17,9 @@
 #include <cassert>
 #include <cmath>
 
+#include <cutensornet.h>
+#include <cuda_runtime.h>
+
 // Error checking macros
 #define HANDLE_CUDA_ERROR(x) \
 { const auto err = x; \
@@ -212,7 +215,7 @@ namespace NWQSim
             {
                 int64_t elems = 1;
                 for (auto e : extents_[i])
-                    elems *= e;`
+                    elems *= e;
                 
                 HANDLE_CUDA_ERROR(cudaMalloc(
                     &d_mpsTensor_[i],
