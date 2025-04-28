@@ -43,16 +43,16 @@ namespace NWQSim
     public:
         TN_CUDA(IdxType _n_qubits)
         : QuantumState(SimType::TN),
-          n_qubits(_n_qubits),
+          n_qubits(_n_qubits)
         {
             HANDLE_CUDA_ERROR(cudaSetDevice(0));
-            HANDLE_CUDA_ERROR(cutensornetCreate(&cutnHandle_));
+            HANDLE_CUTN_ERROR(cutensornetCreate(&cutnHandle_));
 
             extents_.resize(n_qubits);
             extentsPtr_.resize(n_qubits);
             for (int i = 0; i < n_qubits; i++)
             {
-                if (i == 0 || i = n_qubits - 1)
+                if (i == 0 || i == n_qubits - 1)
                     extents_[i] = {2, 2};
                 else
                     extents_[i] = {2, 2, 2};
@@ -69,7 +69,7 @@ namespace NWQSim
 
             // create the initial quantum state
 
-            std::vector<int64_t> qubtiDims(n_qubits, 2);
+            std::vector<int64_t> qubitDims(n_qubits, 2);
             HANDLE_CUTN_ERROR(cutensornetCreateState(
                 cutnHandle_,
                 CUTENSOR_STATE_PURITY_PURE,
@@ -304,7 +304,7 @@ namespace NWQSim
         cutensornetHandle_t cutnHandle_{};
         cutensornetState_t quantumState_{};
         cutensornetWorkspaceDescriptor_t workDesc_{};
-        cutensornetStateSapler_t sampler_{};
+        cutensornetStateSampler_t sampler_{};
 
         std::vector<std::vector<int64_t>> extents_;
         std::vector<int64_t*> extentsPtr_;
