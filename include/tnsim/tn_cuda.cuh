@@ -103,7 +103,7 @@ namespace NWQSim
 
         void reset_state() override
         {
-            throw std::runtime_error("TN_CUDA::set_initial not implemented");
+            throw std::runtime_error("TN_CUDA::reset_state not implemented");
         }
 
         void set_seed(IdxType seed) override
