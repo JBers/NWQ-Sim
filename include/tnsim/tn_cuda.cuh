@@ -157,10 +157,21 @@ namespace NWQSim
                     // create tensor gate data
                     std::vector<std::complex<ValType>> gate_matrix(4);
 
+        		    static void* d_gate_mat = nullptr;
+        
+        		    if (!d_gate_mat) {
+            			cudaMalloc(&d_gate_mat, 4 * sizeof(std::complex<ValType>));
+        		    }
+
                     for (int i = 0; i < 4; ++i)
                     {
                         gate_matrix[i] = std::complex<ValType>(gm_real[i], gm_imag[i]);
                     }
+
+        		    cudaMemcpy(d_gate_mat,
+                        gate_matrix.data(),
+                        4 * sizeof(std::complex<ValType>),
+                        cudaMemcpyHostToDevice);
 
                     int32_t state_modes[1] = {static_cast<int32_t>(g.qubit)};
 
@@ -170,7 +181,7 @@ namespace NWQSim
                     HANDLE_CUTN_ERROR(cutensornetStateApplyTensorOperator(
                         cutnHandle_, quantumState_,
                         1, state_modes,
-                        gate_matrix.data(), tensor_mode_strides,
+                        d_gate_mat, tensor_mode_strides,
                         1, 0, 1, nullptr));
                 }
                 else if (g.op_name == OP::C2)
@@ -182,21 +193,31 @@ namespace NWQSim
                     // create tensor gate data
                     std::vector<std::complex<ValType>> gate_matrix(16);
 
+        		    static void* d_gate_mat = nullptr;
+        
+        		    if (!d_gate_mat) {
+            			cudaMalloc(&d_gate_mat, 16 * sizeof(std::complex<ValType>));
+        		    }
+
                     for (int i = 0; i < 16; ++i)
                     {
                         gate_matrix[i] = std::complex<ValType>(gm_real[i], gm_imag[i]);
                     }
 
+        		    cudaMemcpy(d_gate_mat,
+                        gate_matrix.data(),
+                        16 * sizeof(std::complex<ValType>),
+                        cudaMemcpyHostToDevice);
+
                     int32_t state_modes[2] = {static_cast<int32_t>(g.ctrl), static_cast<int32_t>(g.qubit)};
 
-                    int64_t tensor_mode_strides[4] = {1, 4, 16, 64};
+                    int64_t tensor_mode_strides[4] = {1, 2, 4, 8};
 
-		    printf(tensor_mode_strides[4]);
-                    printf("Got to right before tensor code in 2 qubit gate")
+                    printf("Got to right before tensor code in 2 qubit gate");
                     HANDLE_CUTN_ERROR(cutensornetStateApplyTensorOperator(
                         cutnHandle_, quantumState_,
                         2, state_modes,
-                        gate_matrix.data(), tensor_mode_strides,
+                        d_gate_mat, tensor_mode_strides,
                         1, 0, 1, nullptr));
                 }
             }
