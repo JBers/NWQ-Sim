@@ -132,8 +132,8 @@ namespace NWQSim
                 if (g.op_name == OP::C1)
                 {
                     //pull the real and imaginary components of the sv-gate
-                    ValType* gm_real = g.gm_real;
-                    ValType* gm_imag = g.gm_imag;
+                    const ValType* gm_real = g.gm_real;
+                    const ValType* gm_imag = g.gm_imag;
 
                     // create tensor gate data
                     std::vector<std::complex<ValType>> gate_matrix(4);
@@ -156,8 +156,8 @@ namespace NWQSim
                 else if (g.op_name == OP::C2)
                 {
                     //pull the real and imaginary components of the sv-gate
-                    ValType* gm_real = g.gm_real;
-                    ValType* gm_imag = g.gm_imag;
+                    const ValType* gm_real = g.gm_real;
+                    const ValType* gm_imag = g.gm_imag;
 
                     // create tensor gate data
                     std::vector<std::complex<ValType>> gate_matrix(16);
