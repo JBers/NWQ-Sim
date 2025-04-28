@@ -72,10 +72,10 @@ namespace NWQSim
             std::vector<int64_t> qubitDims(n_qubits, 2);
             HANDLE_CUTN_ERROR(cutensornetCreateState(
                 cutnHandle_,
-                CUTENSOR_STATE_PURITY_PURE,
+                CUTENSORNET_STATE_PURITY_PURE,
                 n_qubits,
                 qubitDims.data(),
-                CUDA_C_4F,
+                CUDA_C_64F,
                 &quantumState_));
         }
 
