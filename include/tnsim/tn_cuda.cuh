@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <cassert>
 #include <cmath>
+#include <cstdio>
 
 #include <cutensornet.h>
 #include <cuda_runtime.h>
@@ -165,7 +166,7 @@ namespace NWQSim
 
                     int64_t tensor_mode_strides[2] = {1, 2};
 
-                    std::cout << "Got to right before tensor code in 1 qubit gate";
+                    printf("Got to right before tensor code in 1 qubit gate");
                     HANDLE_CUTN_ERROR(cutensornetStateApplyTensorOperator(
                         cutnHandle_, quantumState_,
                         1, state_modes,
@@ -190,8 +191,8 @@ namespace NWQSim
 
                     int64_t tensor_mode_strides[4] = {1, 4, 16, 64};
 
-		    std::cout << tensor_mode_strides[4];
-                    std::cout << "Got to right before tensor code in 2 qubit gate";
+		    printf(tensor_mode_strides[4]);
+                    printf("Got to right before tensor code in 2 qubit gate")
                     HANDLE_CUTN_ERROR(cutensornetStateApplyTensorOperator(
                         cutnHandle_, quantumState_,
                         2, state_modes,
