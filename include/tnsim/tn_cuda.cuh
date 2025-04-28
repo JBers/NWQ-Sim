@@ -74,8 +74,6 @@ namespace NWQSim
                 qubitDims.data(),
                 CUDA_C_4F,
                 &quantumState_));
-
-            rng.seed(Config::RANDOM_SEED);
         }
 
         // Virtual destructor inherits from QuantumState
@@ -105,7 +103,7 @@ namespace NWQSim
 
         void set_seed(IdxType seed) override
         {
-            rng.seed(seed);
+            throw std::runtime_error("TN_CUDA does not use RNG seed, not accessible form cutensornet API");
         }
 
         void set_initial(std::string /*fpath*/, std::string /*format*/) override
@@ -266,7 +264,6 @@ namespace NWQSim
     protected:
         IdxType n_qubits;
         IdxType* results = NULL;
-        std::mt19937 rng;
 
         cutensornetHandle_t cutnHandle_{};
         cutensornetState_t quantumState_{};
