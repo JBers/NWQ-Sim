@@ -113,7 +113,7 @@ namespace NWQSim
 
         void set_initial(std::string fpath, std::string format) override
         {
-
+            std::cout << "This function was called" << std::endl;
         }
 
         void dump_res_state(std::string outpath) override
