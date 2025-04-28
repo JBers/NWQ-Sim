@@ -126,7 +126,7 @@ namespace NWQSim
             assert(circuit->num_qubits() == n_qubits);
 
             // use statevector fuse_circuits for nwo)
-            auto gates = fuse_circuits_sv(circuit);
+            auto gates = fuse_circuit_sv(circuit);
             for (auto const& g : gates)
             {
                 if (g.op_name == OP::C1)
