@@ -181,13 +181,13 @@ namespace NWQSim
             HANDLE_CUTN_ERROR(cutensornetStateFinalizeMPS(
                 cutnHandle_, quantumState_,
                 CUTENSORNET_BOUNDARY_CONDITION_OPEN,
-                extentsPtr_.data(), nullptr));
+                extentsPtr_.data(), /*strides=*/nullptr));
 
             // setup SVD
             cutensornetTensorSVDAlgo_t algo = CUTENSORNET_TENSOR_SVD_ALGO_GESVDJ;
             HANDLE_CUTN_ERROR(cutensornetStateConfigure(
                 cutnHandle_, quantumState_,
-                CUTENSOR_STATE_CONFIG_MPS_SVD_ALGO,
+                CUTENSORNET_STATE_CONFIG_MPS_SVD_ALGO,
                 &algo, sizeof(algo)));
 
             // prepare factorizatoin
@@ -246,7 +246,7 @@ namespace NWQSim
             SAFE_ALOC_HOST(results, sizeof(IdxType) * repetition);
 
             // create and configure the sampler
-            HANDLE_CUTN_ERROR(cutensornetCraeteSampler(
+            HANDLE_CUTN_ERROR(cutensornetCreateSampler(
                 cutnHandle_, quantumState_,
                 n_qubits, nullptr,
                 &sampler_));
@@ -254,7 +254,7 @@ namespace NWQSim
             int32_t numHyper = 8;
             HANDLE_CUTN_ERROR(cutensornetSamplerConfigure(
                 cutnHandle_, sampler_,
-                CUTENSORNET_SAMPLER__CONFIG_NUM_HYPER_SAMPLES,
+                CUTENSORNET_SAMPLER_CONFIG_NUM_HYPER_SAMPLES,
                 &numHyper, sizeof(numHyper)));
 
             // prepare and sample
@@ -265,7 +265,7 @@ namespace NWQSim
                 cutnHandle_, sampler_,
                 repetition,
                 workDesc_,
-                results,
+                reinterpret_cast<int64_t*>(results),
                 0));
 
             return results;
