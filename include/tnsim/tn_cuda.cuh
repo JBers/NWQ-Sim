@@ -88,7 +88,7 @@ namespace NWQSim
                 HANDLE_CUTN_ERROR(cutensornetDestroyWorkspaceDescriptor(workDesc_));
             if (quantumState_)
             {
-                HANDLE_CUTN_ERROR(cutensornetDestroyState(cutnHandle_, quantumState_));
+                HANDLE_CUTN_ERROR(cutensornetDestroyState(quantumState_));
                 HANDLE_CUTN_ERROR(cutensornetDestroy(cutnHandle_));
             }
 
@@ -210,7 +210,7 @@ namespace NWQSim
                 d_scratch_, reqSize));
 
             // set MPS tensor buffers
-            d_mpsTensors_.resize(n_qubits);
+            d_mpsTensor_.resize(n_qubits);
             for (int i = 0; i < n_qubits; ++i)
             {
                 int64_t elems = 1;
