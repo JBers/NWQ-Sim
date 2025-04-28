@@ -133,7 +133,7 @@ namespace NWQSim
                     // create tensor gate data
                     std::vector<std::complex<ValType>> gate_matrix(4);
 
-                    for (int i = 0; i < 4; ++1)
+                    for (int i = 0; i < 4; ++i)
                     {
                         gate_matrix[i] = std::complex<ValType>(gm_real[i], gm_imag[i]);
                     }
@@ -157,7 +157,7 @@ namespace NWQSim
                     // create tensor gate data
                     std::vector<std::complex<ValType>> gate_matrix(16);
 
-                    for (int i = 0; i < 16; ++1)
+                    for (int i = 0; i < 16; ++i)
                     {
                         gate_matrix[i] = std::complex<ValType>(gm_real[i], gm_imag[i]);
                     }
@@ -181,6 +181,7 @@ namespace NWQSim
                 extentsPtr_.data(), nullptr));
 
             // setup SVD
+            cutensornetTensorSVDAlgo_t algo = CUTENSORNET_TENSOR_SVD_ALGO_GESVDJ;
             HANDLE_CUTN_ERROR(cutensornetStateConfigure(
                 cutnHandle_, quantumState_,
                 CUTENSOR_STATE_CONFIG_MPS_SVD_ALGO,
