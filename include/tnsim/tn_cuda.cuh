@@ -111,12 +111,12 @@ namespace NWQSim
             throw std::runtime_error("TN_CUDA does not use RNG seed, not accessible form cutensornet API");
         }
 
-        void set_initial(std::string /*fpath*/, std::string /*format*/) override
+        void set_initial(std::string fpath, std::string format) override
         {
-            throw std::runtime_error("TN_CUDA::set_initial not implemented");
+
         }
 
-        void dump_res_state(std::string /*outpath*/) override
+        void dump_res_state(std::string outpath) override
         {
             throw std::runtime_error("TN_CUDA::dump_res_state not implemented");
         }
@@ -237,7 +237,7 @@ namespace NWQSim
             throw std::runtime_error("TN_CUDA::get_results not implemented");
         }
 
-        IdxType measure(IdxType /*qubit*/) override
+        IdxType measure(IdxType qubit) override
         {
             throw std::runtime_error("TN_CUDA::measure not implemented");
         }
@@ -289,7 +289,7 @@ namespace NWQSim
             throw std::runtime_error("TN_CUDA::get_exp_z() not implemented");
         }
 
-        ValType get_exp_z(const std::vector<size_t>& /*in_bits*/) override
+        ValType get_exp_z(const std::vector<size_t>& in_bits) override
         {
             throw std::runtime_error("TN_CUDA::get_exp_z(bits) not implemented");
         }
