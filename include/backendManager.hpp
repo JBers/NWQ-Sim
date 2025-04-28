@@ -18,6 +18,7 @@
 #ifdef CUDA_ENABLED
 #include "svsim/sv_cuda.cuh"
 #include "dmsim/dm_cuda.cuh"
+#include "tnsim/tn_cuda.cuh"
 #endif
 
 #ifdef CUDA_MPI_ENABLED
@@ -82,8 +83,8 @@ public:
                 return std::make_shared<NWQSim::SV_CPU>(numQubits);
             else if (simulator_method == "DM")
                 return std::make_shared<NWQSim::DM_CPU>(numQubits);
-	    else
-		return std::make_shared<NWQSim::TN_CPU>(numQubits);
+	        else
+		        return std::make_shared<NWQSim::TN_CPU>(numQubits);
         }
 
 #ifdef OMP_ENABLED
@@ -105,8 +106,10 @@ public:
         {
             if (simulator_method == "SV")
                 return std::make_shared<NWQSim::SV_CUDA>(numQubits);
-            else
+            else if (simulator_method == "DM")
                 return std::make_shared<NWQSim::DM_CUDA>(numQubits);
+            else
+                return std::make_shared<NWQSIM::TN_CUDA>(numQubits);
         }
 #endif
 
