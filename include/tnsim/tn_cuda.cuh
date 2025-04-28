@@ -126,18 +126,50 @@ namespace NWQSim
             {
                 if (g.op_name == OP::C1)
                 {
+                    //pull the real and imaginary components of the sv-gate
+                    ValType* gm_real = g.gm_real;
+                    ValType* gm_imag = g.gm_imag;
+
+                    // create tensor gate data
+                    std::vector<std::complex<ValType>> gate_matrix(4);
+
+                    for (int i = 0; i < 4; ++1)
+                    {
+                        gate_matrix[i] = std::complex<ValType>(gm_real[i], gm_imag[i]);
+                    }
+
+                    int32_t state_modes[1] = {static_cast<int32_t>(g.qubit)};
+
+                    int64_t tensor_mode_strides[2] = {1, 2};
+
                     HANDLE_CUTN_ERROR(cutensornetStateApplyTensorOperator(
                         cutnHandle_, quantumState_,
-                        1, modes,
-                        null, nullptr,
+                        1, state_modes,
+                        gate_matrix.data(), tensor_mode_strides,
                         1, 0, 1, nullptr));
                 }
                 else if (g.op_name == OP::C2)
                 {
+                    //pull the real and imaginary components of the sv-gate
+                    ValType* gm_real = g.gm_real;
+                    ValType* gm_imag = g.gm_imag;
+
+                    // create tensor gate data
+                    std::vector<std::complex<ValType>> gate_matrix(16);
+
+                    for (int i = 0; i < 16; ++1)
+                    {
+                        gate_matrix[i] = std::complex<ValType>(gm_real[i], gm_imag[i]);
+                    }
+
+                    int32_t state_modes[2] = {static_cast<int32_t>(g.ctrl), static_cast<int32_t>(g.qubit)};
+
+                    int64_t tensor_mode_strides[4] = {1, 4, 16, 64};
+
                     HANDLE_CUTN_ERROR(cutensornetStateApplyTensorOperator(
                         cutnHandle_, quantumState_,
-                        2, modes,
-                        null, nullptr,
+                        2, state_modes,
+                        gate_matrix.data(), tensor_mode_strides,
                         1, 0, 1, nullptr));
                 }
             }
