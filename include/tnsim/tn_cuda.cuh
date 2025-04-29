@@ -64,6 +64,9 @@ namespace NWQSim
                     extents_[i] = {2, 2, 2};
             }
 
+//            for (IdxType i = 0; i < n_qubits; ++i) {
+//                extentsPtr_[i] = extents_[i].data();
+//            }
             // scratch buffer
             size_t freeBytes, totalBytes;
             HANDLE_CUDA_ERROR(cudaMemGetInfo(&freeBytes, &totalBytes));
@@ -116,6 +119,10 @@ namespace NWQSim
                 else
                     extents_[i] = {2, 2, 2};
             }
+
+//            for (IdxType i = 0; i < n_qubits; ++i) {
+//                extentsPtr_[i] = extents_[i].data();
+//            }
 
             std::vector<int64_t> qubitDims(n_qubits, 2);
             HANDLE_CUTN_ERROR(cutensornetCreateState(
@@ -226,12 +233,13 @@ namespace NWQSim
 
                     // inline call + error‐check
                     {
+                      int64_t tmpTensorId = 0;
                       auto _st = cutensornetStateApplyTensorOperator(
                           cutnHandle_, quantumState_,
                           2, state_modes,
                           d_gate_mat,
                           tensor_mode_strides,
-                          1, 0, 1, nullptr
+                          1, 0, 1, &tmpTensorId
                       );
                       if (_st != CUTENSORNET_STATUS_SUCCESS) {
                         fprintf(stderr,
@@ -243,11 +251,18 @@ namespace NWQSim
                 }
             }
 
+
+            printf("Finished fusing and applying gates");
+
+            for (IdxType i = 0; i < n_qubits; ++i) {
+                extentsPtr_[i] = extents_[i].data();
+            }
+
             // finalize MPS
             HANDLE_CUTN_ERROR(cutensornetStateFinalizeMPS(
                 cutnHandle_, quantumState_,
                 CUTENSORNET_BOUNDARY_CONDITION_OPEN,
-                extentsPtr_.data(), /*strides=*/nullptr));
+                extentsPtr_.data(), nullptr));
 
             // setup SVD
             cutensornetTensorSVDAlgo_t algo = CUTENSORNET_TENSOR_SVD_ALGO_GESVDJ;
@@ -294,11 +309,13 @@ namespace NWQSim
                 workDesc_,
                 extentsPtr_.data(), nullptr,
                 d_mpsTensor_.data(), 0));
+
+            printf("Computed the state at the end of sim");
         }
 
         IdxType* get_results() override
         {
-            throw std::runtime_error("TN_CUDA::get_results not implemented");
+            return results;
         }
 
         IdxType measure(IdxType qubit) override
@@ -333,6 +350,8 @@ namespace NWQSim
                 workDesc_,
                 reinterpret_cast<int64_t*>(results),
                 0));
+
+            printf("End of measure all");
 
             return results;
         }
