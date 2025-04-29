@@ -164,7 +164,7 @@ namespace NWQSim
                     const ValType* gm_real = g.gm_real;
                     const ValType* gm_imag = g.gm_imag;
 
-                    // create tensor gate data
+                    // create tensor gate data: reorder single-qubit gate to [j, i] major
                     std::vector<std::complex<ValType>> gate_matrix(4);
 
         		    static void* d_gate_mat = nullptr;
@@ -173,9 +173,17 @@ namespace NWQSim
             			cudaMalloc(&d_gate_mat, 4 * sizeof(std::complex<ValType>));
         		    }
 
-                    for (int i = 0; i < 4; ++i)
-                    {
-                        gate_matrix[i] = std::complex<ValType>(gm_real[i], gm_imag[i]);
+                    // cuTensorNet wants G(j,i) laid out so that strides={2,1}
+                    for (int j = 0; j < 2; ++j) {
+                        for (int i = 0; i < 2; ++i) {
+                            // original gm_real/gm_imag are row-major G[i][j] at idx = i*2 + j
+                            size_t orig_idx = i*2 + j;
+                            size_t new_idx  = j*2 + i;
+                            gate_matrix[new_idx] = std::complex<ValType>(
+                                gm_real[orig_idx],
+                                gm_imag[orig_idx]
+                            );
+                        }
                     }
 
         		    cudaMemcpy(d_gate_mat,
@@ -200,7 +208,7 @@ namespace NWQSim
                     const ValType* gm_real = g.gm_real;
                     const ValType* gm_imag = g.gm_imag;
 
-                    // create tensor gate data
+                    // create tensor gate data: reorder two-qubit gate to [j1,j0,i1,i0] major
                     std::vector<std::complex<ValType>> gate_matrix(16);
 
         		    static void* d_gate_mat = nullptr;
@@ -209,9 +217,21 @@ namespace NWQSim
             			cudaMalloc(&d_gate_mat, 16 * sizeof(std::complex<ValType>));
         		    }
 
-                    for (int i = 0; i < 16; ++i)
-                    {
-                        gate_matrix[i] = std::complex<ValType>(gm_real[i], gm_imag[i]);
+                    // cuTensorNet wants G(j1,j0,i1,i0) laid out so that strides={8,4,2,1}
+                    for (int j1 = 0; j1 < 2; ++j1) {
+                        for (int j0 = 0; j0 < 2; ++j0) {
+                            for (int i1 = 0; i1 < 2; ++i1) {
+                                for (int i0 = 0; i0 < 2; ++i0) {
+                                    // your gm_real/gm_imag are row-major G[i0,i1,j0,j1]
+                                    size_t orig_idx = (i0*2 + i1)*4 + (j0*2 + j1);
+                                    size_t new_idx  =  j1*8 + j0*4 + i1*2 + i0;
+                                    gate_matrix[new_idx] = std::complex<ValType>(
+                                        gm_real[orig_idx],
+                                        gm_imag[orig_idx]
+                                    );
+                                }
+                            }
+                        }
                     }
 
         		    cudaMemcpy(d_gate_mat,
