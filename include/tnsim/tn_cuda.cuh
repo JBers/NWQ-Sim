@@ -30,11 +30,25 @@
   { printf("CUDA error %s in %s:%d\n", cudaGetErrorString(err), __FILE__, __LINE__); fflush(stdout); std::abort(); } \
 }
 
-#define HANDLE_CUTN_ERROR(x) \
-{ const auto err = x; \
-  if (err != CUTENSORNET_STATUS_SUCCESS) \
-  { printf("cuTensorNet error %s in %s:%d\n", cutensornetGetErrorString(err), __FILE__, __LINE__); fflush(stdout); std::abort(); } \
-}
+#define HANDLE_CUTN_ERROR(x)                                                   \
+do {                                                                         \
+  auto _status = (x);                                                        \
+  if (_status != CUTENSORNET_STATUS_SUCCESS) {                               \
+    /* dump the offending arguments */                                       \
+    fprintf(stderr,                                                           \
+            "CUTENSORNET_STATUS_INVALID_VALUE at %s:%d\n"                    \
+            "  gate_ptr=%p\n"                                                \
+            "  modes = [%d,%d]\n"                                            \
+            "  strides = [%lld,%lld,%lld,%lld]\n",                            \
+            __FILE__, __LINE__,                                              \
+            /* you'll need these in scope where you call it: */              \
+            d_gate_mat,                                                       \
+            state_modes[0], state_modes[1],                                   \
+            tensor_mode_strides[0], tensor_mode_strides[1],                   \
+            tensor_mode_strides[2], tensor_mode_strides[3]);                 \
+    std::abort();                                                            \
+  }                                                                          \
+} while (0)
 
 // API Calls for cutensornet can be found here:
 // https://docs.nvidia.com/cuda/cuquantum/latest/cutensornet/api/functions.html
@@ -212,6 +226,20 @@ namespace NWQSim
                     int32_t state_modes[2] = {static_cast<int32_t>(g.ctrl), static_cast<int32_t>(g.qubit)};
 
                     int64_t tensor_mode_strides[4] = {1, 2, 4, 8};
+
+                    { // DEBUG: verify the state’s mode‐layout
+                        int32_t nm = 0;
+                        cutensornetGetAttribute(cutnHandle_, quantumState_,
+                                                CUTENSORNET_STATE_ATTRIBUTE_NUMBER_TENSOR_MODES,
+                                                &nm, sizeof(nm));
+                        std::vector<int64_t> ext(nm);
+                        cutensornetGetAttribute(cutnHandle_, quantumState_,
+                                                CUTENSORNET_STATE_ATTRIBUTE_EXTENTS,
+                                                ext.data(), nm * sizeof(int64_t));
+                        fprintf(stderr, "STATE DEBUG: nmodes=%d extents=[", nm);
+                        for (int i = 0; i < nm; ++i) fprintf(stderr, "%lld,", ext[i]);
+                        fprintf(stderr, "]\n");
+                    }
 
                     printf("Got to right before tensor code in 2 qubit gate");
                     HANDLE_CUTN_ERROR(cutensornetStateApplyTensorOperator(
