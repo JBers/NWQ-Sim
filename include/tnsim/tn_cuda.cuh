@@ -146,8 +146,8 @@ namespace NWQSim
         void sim(std::shared_ptr<NWQSim::Circuit> circuit) override
         {
             assert(circuit->num_qubits() == n_qubits);
-
-            // use statevector fuse_circuits for nwo)
+        // one static device buffer for all 2-qubit gates
+        static void* d_gate_mat = nullptr;
             auto gates = fuse_circuit_sv(circuit);
             for (auto const& g : gates)
             {
@@ -215,21 +215,6 @@ namespace NWQSim
                     int32_t state_modes[2] = {static_cast<int32_t>(g.ctrl), static_cast<int32_t>(g.qubit)};
 
                     int64_t tensor_mode_strides[4] = {1, 2, 4, 8};
-
-                    // ensure the gate matrix lives on the device
-                    static void* d_gate_mat = nullptr;
-                    if (!d_gate_mat) {
-                        HANDLE_CUDA_ERROR(
-                          cudaMalloc(&d_gate_mat,
-                                     16 * sizeof(std::complex<ValType>))
-                        );
-                    }
-                    HANDLE_CUDA_ERROR(
-                      cudaMemcpy(d_gate_mat,
-                                 gate_matrix.data(),
-                                 16 * sizeof(std::complex<ValType>),
-                                 cudaMemcpyHostToDevice)
-                    );
 
                     // debug‐print exactly what we’ll hand to cuTensorNet
                     fprintf(stderr,
