@@ -153,124 +153,90 @@ namespace NWQSim
         void sim(std::shared_ptr<NWQSim::Circuit> circuit) override
         {
             assert(circuit->num_qubits() == n_qubits);
-        // one static device buffer for all 2-qubit gates
-        static void* d_gate_mat = nullptr;
+            // one static device buffer for all 2-qubit gates
+
+            static void* d_gate_mat = nullptr;
             auto gates = fuse_circuit_sv(circuit);
-            for (auto const& g : gates)
-            {
-                if (g.op_name == OP::C1)
-                {
-                    //pull the real and imaginary components of the sv-gate
+            for (auto const& g : gates) {
+                if (g.op_name == OP::C1) {
+                    // pull the real and imaginary components of the sv-gate
                     const ValType* gm_real = g.gm_real;
                     const ValType* gm_imag = g.gm_imag;
-
-                    // create tensor gate data: reorder single-qubit gate to [j, i] major
+            
+                    // reorder single-qubit gate into column-major [j0,i0]
                     std::vector<std::complex<ValType>> gate_matrix(4);
-
-        		    static void* d_gate_mat = nullptr;
-        
-        		    if (!d_gate_mat) {
-            			cudaMalloc(&d_gate_mat, 4 * sizeof(std::complex<ValType>));
-        		    }
-
-                    // cuTensorNet wants G(j,i) laid out so that strides={2,1}
-                    for (int j = 0; j < 2; ++j) {
-                        for (int i = 0; i < 2; ++i) {
-                            // original gm_real/gm_imag are row-major G[i][j] at idx = i*2 + j
-                            size_t orig_idx = i*2 + j;
-                            size_t new_idx  = j*2 + i;
-                            gate_matrix[new_idx] = std::complex<ValType>(
-                                gm_real[orig_idx],
-                                gm_imag[orig_idx]
-                            );
+                    for (size_t i0 = 0; i0 < 2; ++i0) {
+                        for (size_t j0 = 0; j0 < 2; ++j0) {
+                            size_t orig = i0*2 + j0;         // row-major index
+                            size_t off  = j0 + 2*i0;         // column-major offset
+                            gate_matrix[off] = { gm_real[orig], gm_imag[orig] };
                         }
                     }
-
-        		    cudaMemcpy(d_gate_mat,
-                        gate_matrix.data(),
-                        4 * sizeof(std::complex<ValType>),
-                        cudaMemcpyHostToDevice);
-
-                    int32_t state_modes[1] = {static_cast<int32_t>(g.qubit)};
-
-                    int64_t tensor_mode_strides[2] = {1, 2};
-
-                    printf("Got to right before tensor code in 1 qubit gate");
+            
+                    if (!d_gate_mat) {
+                        cudaMalloc(&d_gate_mat, 4 * sizeof(std::complex<ValType>));
+                    }
+                    cudaMemcpy(d_gate_mat,
+                               gate_matrix.data(),
+                               4 * sizeof(std::complex<ValType>),
+                               cudaMemcpyHostToDevice);
+            
+                    int32_t state_modes[1] = { static_cast<int32_t>(g.qubit) };
                     HANDLE_CUTN_ERROR(cutensornetStateApplyTensorOperator(
                         cutnHandle_, quantumState_,
                         1, state_modes,
-                        d_gate_mat, tensor_mode_strides,
-                        1, 0, 1, nullptr));
+                        d_gate_mat,         // data pointer
+                        nullptr,            // use default (column-major) strides
+                        1, 0, 1, nullptr
+                    ));
                 }
-                else if (g.op_name == OP::C2)
-                {
-                    //pull the real and imaginary components of the sv-gate
+                else if (g.op_name == OP::C2) {
+                    // pull the real and imaginary components of the sv-gate
                     const ValType* gm_real = g.gm_real;
                     const ValType* gm_imag = g.gm_imag;
-
-                    // create tensor gate data: reorder two-qubit gate to [j1,j0,i1,i0] major
+            
+                    // reorder two-qubit gate into column-major [j1,j0,i1,i0]
                     std::vector<std::complex<ValType>> gate_matrix(16);
-
-        		    static void* d_gate_mat = nullptr;
-        
-        		    if (!d_gate_mat) {
-            			cudaMalloc(&d_gate_mat, 16 * sizeof(std::complex<ValType>));
-        		    }
-
-                    // cuTensorNet wants G(j1,j0,i1,i0) laid out so that strides={8,4,2,1}
-                    for (int j1 = 0; j1 < 2; ++j1) {
-                        for (int j0 = 0; j0 < 2; ++j0) {
-                            for (int i1 = 0; i1 < 2; ++i1) {
-                                for (int i0 = 0; i0 < 2; ++i0) {
-                                    // your gm_real/gm_imag are row-major G[i0,i1,j0,j1]
-                                    size_t orig_idx = (i0*2 + i1)*4 + (j0*2 + j1);
-                                    size_t new_idx  =  j1*8 + j0*4 + i1*2 + i0;
-                                    gate_matrix[new_idx] = std::complex<ValType>(
-                                        gm_real[orig_idx],
-                                        gm_imag[orig_idx]
-                                    );
+                    for (size_t i1 = 0; i1 < 2; ++i1) {
+                        for (size_t i0 = 0; i0 < 2; ++i0) {
+                            for (size_t j1 = 0; j1 < 2; ++j1) {
+                                for (size_t j0 = 0; j0 < 2; ++j0) {
+                                    size_t orig = (i1*2 + i0)*4 + (j1*2 + j0);  // row-major index
+                                    size_t off  = j1 + 2*j0 + 4*i1 + 8*i0;      // column-major offset
+                                    gate_matrix[off] = { gm_real[orig], gm_imag[orig] };
                                 }
                             }
                         }
                     }
-
-        		    cudaMemcpy(d_gate_mat,
-                        gate_matrix.data(),
-                        16 * sizeof(std::complex<ValType>),
-                        cudaMemcpyHostToDevice);
-
-                    int32_t state_modes[2] = {static_cast<int32_t>(g.ctrl), static_cast<int32_t>(g.qubit)};
-
-                    int64_t tensor_mode_strides[4] = {1, 2, 4, 8};
-
-                    // debug‐print exactly what we’ll hand to cuTensorNet
-                    fprintf(stderr,
-                            "DEBUG applyTensorOperator: gate_ptr=%p, modes=[%d,%d], strides=[%lld,%lld,%lld,%lld]\n",
-                            d_gate_mat,
-                            state_modes[0], state_modes[1],
-                            tensor_mode_strides[0], tensor_mode_strides[1],
-                            tensor_mode_strides[2], tensor_mode_strides[3]);
-
-                    // inline call + error‐check
-                    {
-                      int64_t tmpTensorId = 0;
-                      auto _st = cutensornetStateApplyTensorOperator(
-                          cutnHandle_, quantumState_,
-                          2, state_modes,
-                          d_gate_mat,
-                          tensor_mode_strides,
-                          1, 0, 1, &tmpTensorId
-                      );
-                      if (_st != CUTENSORNET_STATUS_SUCCESS) {
+            
+                    if (!d_gate_mat) {
+                        cudaMalloc(&d_gate_mat, 16 * sizeof(std::complex<ValType>));
+                    }
+                    cudaMemcpy(d_gate_mat,
+                               gate_matrix.data(),
+                               16 * sizeof(std::complex<ValType>),
+                               cudaMemcpyHostToDevice);
+            
+                    int32_t state_modes[2] = {
+                        static_cast<int32_t>(g.ctrl),
+                        static_cast<int32_t>(g.qubit)
+                    };
+                    int64_t tmpTensorId = 0;
+                    auto _st = cutensornetStateApplyTensorOperator(
+                        cutnHandle_, quantumState_,
+                        2, state_modes,
+                        d_gate_mat,         // data pointer
+                        nullptr,            // use default (column-major) strides
+                        1, 0, 1, &tmpTensorId
+                    );
+                    if (_st != CUTENSORNET_STATUS_SUCCESS) {
                         fprintf(stderr,
                                 "ERROR applyTensorOperator: %s\n",
                                 cutensornetGetErrorString(_st));
                         std::abort();
-                      }
                     }
                 }
             }
-
 
             printf("Finished fusing and applying gates");
 
