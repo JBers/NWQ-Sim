@@ -459,25 +459,46 @@ namespace NWQSim
         }
 
         //============== MA Gate (Measure all qubits in Pauli-Z) ================
+
         virtual void MA_GATE(const IdxType repetition)
         {
+            // --- (Re)allocate output buffer ---
             SAFE_FREE_HOST(results);
             SAFE_ALOC_HOST(results, sizeof(IdxType) * repetition);
             memset(results, 0, sizeof(IdxType) * repetition);
-
-            // IdxType n_size = (IdxType)1 << n_qubits;
+        
+            // --- Build cumulative distribution over 2^n_qubits outcomes ---
+            const IdxType distSize = ((IdxType)1 << n_qubits) + 1;
             m_real[0] = 0;
-            for (IdxType i = 1; i < (((IdxType)1 << n_qubits) + 1); i++)
-                m_real[i] = m_real[i - 1] + ((sv_real[i - 1] * sv_real[i - 1]) + (sv_imag[i - 1] * sv_imag[i - 1]));
-            ValType purity = fabs(m_real[((IdxType)1 << n_qubits)]);
-            if (abs(purity - 1.0) > ERROR_BAR)
-                printf("MA: Purity Check fails with %lf\n", purity);
-
-            for (IdxType i = 0; i < repetition; i++)
+            for (IdxType i = 1; i < distSize; ++i)
             {
-                IdxType lo = 0;
-                IdxType hi = ((IdxType)1 << n_qubits);
-                IdxType mid;
+                ValType p = sv_real[i - 1] * sv_real[i - 1]
+                           + sv_imag[i - 1] * sv_imag[i - 1];
+                m_real[i] = m_real[i - 1] + p;
+            }
+        
+            // --- Purity check ---
+            ValType purity = fabs(m_real[distSize - 1]);
+            if (fabs(purity - 1.0) > ERROR_BAR)
+            {
+                printf("[DEBUG] MA_GATE: Purity Check fails: % .6f (expected 1.0)\n", purity);
+            }
+        
+            // --- Debug: print first few entries of m_real ---
+            {
+                const IdxType inspect = std::min<IdxType>(distSize, 8);
+                printf("[DEBUG] m_real[0..%lld]:", (long long)(inspect - 1));
+                for (IdxType i = 0; i < inspect; ++i)
+                {
+                    printf(" % .6f", m_real[i]);
+                }
+                printf("\n");
+            }
+        
+            // --- Draw samples by inverse‐C.D.F. search ---
+            for (IdxType shot = 0; shot < repetition; ++shot)
+            {
+                IdxType lo = 0, hi = distSize - 1, mid;
                 ValType r = uni_dist(rng);
                 while (hi - lo > 1)
                 {
@@ -487,8 +508,21 @@ namespace NWQSim
                     else
                         hi = mid;
                 }
-                results[i] = lo;
+                results[shot] = lo;
             }
+        
+            // --- Debug: print first few sampled results ---
+            {
+                const IdxType inspect = std::min<IdxType>(repetition, (IdxType)8);
+                printf("[DEBUG] results[0..%lld]:", (long long)(inspect - 1));
+                for (IdxType shot = 0; shot < inspect; ++shot)
+                {
+                    printf(" %lld", (long long)results[shot]);
+                }
+                printf("\n");
+            }
+        
+            // --- End of MA_GATE (results populated) ---
         }
         virtual double EXPECT_C4_GATE(const ValType *gm_real, const ValType *gm_imag, IdxType qubit0, IdxType qubit1, IdxType qubit2, IdxType qubit3, IdxType mask)
         {
