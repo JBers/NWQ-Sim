@@ -45,15 +45,15 @@ endif()
 target_link_libraries(nwq_qasm
   PRIVATE
     itensor         # imported ITensor library
-    BLAS
-    LAPACK
+    sci_nvidia_mpi_mp
+    sci_nvidia_mp
 )
 
 target_link_libraries(test_itensor
   PRIVATE
     itensor
-    BLAS
-    LAPACK
+    sci_nvidia_mpi_mp
+    sci_nvidia_mp
 )
 # —————————————————————————————————————————————————————
 
