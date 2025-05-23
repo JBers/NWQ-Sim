@@ -65,7 +65,7 @@ public:
 #endif
     }
 
-    static std::shared_ptr<NWQSim::QuantumState> create_state(std::string backend, NWQSim::IdxType numQubits, std::string simulator_method = "SV")
+    static std::shared_ptr<NWQSim::QuantumState> create_state(std::string backend, NWQSim::IdxType numQubits, std::string simulator_method = "SV", NWQSim::IdxType bondDimension = 10)
     {
         // Convert to uppercase
         std::transform(backend.begin(), backend.end(), backend.begin(),
@@ -83,7 +83,7 @@ public:
             else if (simulator_method == "DM")
                 return std::make_shared<NWQSim::DM_CPU>(numQubits);
 	    else
-		return std::make_shared<NWQSim::TN_CPU>(numQubits);
+		return std::make_shared<NWQSim::TN_CPU>(numQubits, bondDimension);
         }
 
 #ifdef OMP_ENABLED

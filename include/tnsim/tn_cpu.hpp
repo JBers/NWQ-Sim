@@ -26,10 +26,11 @@ namespace NWQSim
     {
 
     public:
-        TN_CPU(IdxType _n_qubits) : QuantumState(SimType::TN)
+        TN_CPU(IdxType _n_qubits, int _bond_dimension) : QuantumState(SimType::TN)
         {
             // Initialize CPU side
             n_qubits = _n_qubits;
+            bond_dimension = _bond_dimension;
 
             dim = (IdxType)1 << (n_qubits);
             half_dim = (IdxType)1 << (n_qubits - 1);
@@ -167,6 +168,7 @@ namespace NWQSim
     protected:
         // n_qubits is the number of qubits
         IdxType n_qubits;
+        int bond_dimension;
         IdxType sv_size;
         IdxType dim;
         IdxType half_dim;
@@ -485,7 +487,7 @@ namespace NWQSim
                 auto contract_location = network(site0)*network(site1);
                 auto temp = gate*contract_location;
                     temp.noPrime();
-                auto [u,s,v] = itensor::svd(temp,itensor::inds(network(site0)),{"Cutoff=", 0.0, "MaxDim=", 10});	    
+                auto [u,s,v] = itensor::svd(temp,itensor::inds(network(site0)),{"Cutoff=", 0.0, "MaxDim=", bond_dimension});	    
                 network.set(site0, u);
                 network.set(site1, s*v);
                 network.orthogonalize();

@@ -1,6 +1,7 @@
 set(SOURCE_FILE "nwq_qasm.cpp")
 
 add_executable(nwq_qasm nwq_qasm.cpp)
+add_executable(test_itensor test_itensor.cpp)
 target_compile_features(nwq_qasm PRIVATE cxx_std_17)
 
 # Link against OpenMP if available
@@ -44,8 +45,15 @@ endif()
 target_link_libraries(nwq_qasm
   PRIVATE
     itensor         # imported ITensor library
-    BLAS
-    LAPACK
+    sci_nvidia_mpi_mp
+    sci_nvidia_mp
+)
+
+target_link_libraries(test_itensor
+  PRIVATE
+    itensor
+    sci_nvidia_mpi_mp
+    sci_nvidia_mp
 )
 # —————————————————————————————————————————————————————
 
