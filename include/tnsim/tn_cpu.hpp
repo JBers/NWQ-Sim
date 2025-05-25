@@ -28,45 +28,25 @@ namespace NWQSim
     public:
         TN_CPU(IdxType _n_qubits, int max_dim, double sv_cutoff) : QuantumState(SimType::TN)
         {
-            // Initialize CPU side
             n_qubits = _n_qubits;
-            bond_dimension = _bond_dimension;
-
-            dim = (IdxType)1 << (n_qubits);
-            half_dim = (IdxType)1 << (n_qubits - 1);
-            sv_size = dim * (IdxType)sizeof(ValType);
-            n_cpu = 1;
-
-            // MPS Parameters
+            dim = IdxType(1) << n_qubits;
             MaxDim = max_dim;
             Cutoff = sv_cutoff;
-
-            // CPU side initialization
+        
             SAFE_ALOC_HOST(sv_real, sv_size);
             SAFE_ALOC_HOST(sv_imag, sv_size);
             memset(sv_real, 0, sv_size);
             memset(sv_imag, 0, sv_size);
-
-            // State-vector initial state [0..0] = 1
-            sv_real[0] = 1.;
-            cpu_mem += sv_size * 4;
-
+            sv_real[0] = 1.0;
             SAFE_ALOC_HOST(m_real, sv_size + sizeof(ValType));
             memset(m_real, 0, sv_size + sizeof(ValType));
-            rng.seed(Config::RANDOM_SEED);
-
-            // ITensor MPS Initialization
-	        auto sites = itensor::SpinHalf(int(n_qubits),{"ConserveQNs=", false});
-    	    auto state = itensor::InitState(sites,"Up");
-	        auto network = itensor::MPS(state);
-            auto all_zeros = network;
-
-            
-            std::cout<<"MaxDim "<<MaxDim<<" Cutoff "<<Cutoff<<std::endl;
-
+        
+            sites = itensor::SpinHalf(int(n_qubits),{"ConserveQNs=", false});
+            auto init_state = itensor::InitState(sites,"Up");
+            network = itensor::MPS(init_state);
+            all_zeros = network;
+            network.position(1);
         }
-
-
         ~TN_CPU()
         {
             // Release for CPU side
@@ -365,7 +345,7 @@ namespace NWQSim
             if(std::abs(qubit0 - qubit1) != 1){
                 // std::cout<<"Non local C2"<<std::endl;
                 // 2Q Gate Decomposition into Control: u  ;  Target: s*v
-                auto [u,s,v] = itensor::svd(gate,{i,prime(i)},{j,prime(j)},{"Cutoff=", Cutoff, "MaxDim=", MaxDim, "SVDMethod=", "gesdd"});
+                auto [u,s,v] = itensor::svd(gate,{i,prime(i)},{j,prime(j)},{"Cutoff=", Cutoff, "MaxDim=", MaxDim, "SVDMethod=", "gesvd"});
                 auto sv = s*v;
 
                 if(method){
@@ -390,7 +370,7 @@ namespace NWQSim
                     // Decompose contraction, U is the new site tensor in the circuit network
                     // S*V holds the "propagating bond" which is "pushed" through the circuit to the target site
                     // This "bond" is the dangling link of the initial gate SVD
-                    auto [U,S,V] = itensor::svd(site0_contract,{i,prime(i),leftLinkIndex(network,site0)},{"Cutoff=", Cutoff, "MaxDim=", MaxDim, "SVDMethod=", "gesdd"});
+                    auto [U,S,V] = itensor::svd(site0_contract,{i,prime(i),leftLinkIndex(network,site0)},{"Cutoff=", Cutoff, "MaxDim=", MaxDim, "SVDMethod=", "gesvd"});
                     network.set(site0,U);
                     network.position(site0);
                     propagating_bond =S*V;
@@ -403,7 +383,7 @@ namespace NWQSim
                     for(auto i = site0+1 ; i < site1; i++ ){
 
                         auto i_contract = propagating_bond * network(i);
-                        auto [u,s,v] = itensor::svd(i_contract,{sites(i),lindex},{"Cutoff=", Cutoff, "MaxDim=", MaxDim, "SVDMethod=", "gesdd"});
+                        auto [u,s,v] = itensor::svd(i_contract,{sites(i),lindex},{"Cutoff=", Cutoff, "MaxDim=", MaxDim, "SVDMethod=", "gesvd"});
                         lindex = commonInds(u,s)[0];
                         network.set(i,u);
                         network.position(i);
@@ -549,7 +529,7 @@ namespace NWQSim
   
                 new_sites_contracted.noPrime();
                 // auto [u,s,v] = itensor::svd(new_sites_contracted ,itensor::inds(network(site0)),{"Cutoff=", 0.0, "MaxDim=", 10});	
-                auto [u,s,v] = itensor::svd(new_sites_contracted ,itensor::inds(network(site0)),{"Cutoff=", Cutoff, "MaxDim=", MaxDim, "SVDMethod=", "gesdd"});    
+                auto [u,s,v] = itensor::svd(new_sites_contracted ,itensor::inds(network(site0)),{"Cutoff=", Cutoff, "MaxDim=", MaxDim, "SVDMethod=", "gesvd"});    
                 network.set(site0, u);
                 network.set(site1, s*v);
 
