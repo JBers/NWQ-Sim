@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     int bd_max   = 20;
     int CIRCUITS = 20;
     int SHOTS    = 8192;
-    std::string qasm_dir = "qv_qasm";
+    std::string qasm_dir = "../../qv_qasm";
 
     // Positional overrides:
     //   argv[1] = n_qubits
