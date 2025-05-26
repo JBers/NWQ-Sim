@@ -1,122 +1,158 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <string>
+#include <filesystem>
+#include <sstream>
+#include <iomanip>
 #include <algorithm>
 #include <cmath>
-#include <random>
-#include <memory>
+#include <csignal>
+#include "src/qasm_parser.hpp"
 #include "../include/backendManager.hpp"
 #include "../include/state.hpp"
-#include "../include/circuit.hpp"
 #include "../include/nwq_util.hpp"
 
 using namespace NWQSim;
 using ValType = double;
+namespace fs = std::filesystem;
 
-static constexpr int NQ        = 16;
-static constexpr int SHOTS     = 1024;
-static constexpr int CIRCUITS  = 5;
-static constexpr double THRESHOLD = 2.0/3.0;
-
-static ValType uniform01() {
-    return randomval();
+void segfault_handler(int) {
+    std::cerr << "[FATAL] Segmentation fault\n";
+    std::exit(1);
 }
 
-static void apply_random_su2(Circuit &circ, IdxType q) {
-    ValType u1 = uniform01();
-    ValType u2 = uniform01();
-    ValType u3 = uniform01();
-    ValType theta = std::acos(1.0 - 2.0 * u1);
-    ValType phi   = 2.0 * PI * u2;
-    ValType lam   = 2.0 * PI * u3;
-    circ.U(theta, phi, lam, q);
-}
+int main(int argc, char** argv) {
+    std::signal(SIGSEGV, segfault_handler);
 
-static std::shared_ptr<Circuit> build_qv_circuit(int k, std::mt19937_64 &rng) {
-    auto circ = std::make_shared<Circuit>(k);
-    std::vector<IdxType> perm(k);
-    for (IdxType i = 0; i < k; ++i) perm[i] = i;
-    for (int layer = 0; layer < k; ++layer) {
-        std::shuffle(perm.begin(), perm.end(), rng);
-        for (int i = 0; i + 1 < k; i += 2) {
-            IdxType q1 = perm[i];
-            IdxType q2 = perm[i+1];
-            apply_random_su2(*circ, q1);
-            apply_random_su2(*circ, q2);
-            circ->CX(q1, q2);
-            apply_random_su2(*circ, q1);
-            apply_random_su2(*circ, q2);
-            circ->CX(q1, q2);
-            apply_random_su2(*circ, q1);
-            apply_random_su2(*circ, q2);
-            circ->CX(q1, q2);
-            apply_random_su2(*circ, q1);
-            apply_random_su2(*circ, q2);
-        }
+    // Defaults
+    int n_qubits = 8;
+    int bd_min   = 1;
+    int bd_max   = 20;
+    int CIRCUITS = 20;
+    int SHOTS    = 8192;
+    std::string qasm_dir = "qv_qasm";
+
+    // Positional overrides:
+    //   argv[1] = n_qubits
+    //   argv[2] = bd_min
+    //   argv[3] = bd_max
+    //   argv[4] = CIRCUITS
+    //   argv[5] = SHOTS
+    //   argv[6] = qasm_dir
+    if (argc > 1) n_qubits = std::stoi(argv[1]);
+    if (argc > 2) bd_min   = std::stoi(argv[2]);
+    if (argc > 3) bd_max   = std::stoi(argv[3]);
+    if (argc > 4) CIRCUITS = std::stoi(argv[4]);
+    if (argc > 5) SHOTS    = std::stoi(argv[5]);
+    if (argc > 6) qasm_dir = argv[6];
+
+    if (bd_min > bd_max) {
+        std::cerr << "[ERROR] bd_min (" << bd_min
+                  << ") > bd_max (" << bd_max << ")\n";
+        return 1;
     }
-    return circ;
-}
 
-int main() {
-    std::mt19937_64 rng(std::random_device{}());
-    std::vector<int> bond_dims = {1,10,20};
-    std::ofstream csv("bond_vs_qv.csv");
-    csv << "bond_dimension,quantum_volume,uncertainty\n";
-    for (int bd : bond_dims) {
-        int max_pass = 0;
-        double qv_unc = 0.0;
-        for (int k = 2; k <= NQ; ++k) {
-            size_t dim = size_t(1) << k;
-            std::vector<double> hops;
-            hops.reserve(CIRCUITS);
-            for (int c = 0; c < CIRCUITS; ++c) {
-                auto circ = build_qv_circuit(k, rng);
-                auto st = BackendManager::create_state("CPU", k, "tn_sim", bd, 1e-12);
-                circ->MA(SHOTS);
-                st->sim(circ);
-                long long *result = st->get_results();
-                std::vector<long long> counts(dim, 0);
-                for (int s = 0; s < SHOTS; ++s) {
-                    counts[result[s]]++;
-                }
-                std::vector<ValType> phat(dim);
-                for (size_t i = 0; i < dim; ++i) {
-                    phat[i] = ValType(counts[i]) / ValType(SHOTS);
-                }
-                auto sorted = phat;
-                std::sort(sorted.begin(), sorted.end());
-                ValType median = (dim & 1)
-                    ? sorted[dim/2]
-                    : 0.5 * (sorted[dim/2 - 1] + sorted[dim/2]);
-                long long hits = 0;
-                for (size_t i = 0; i < dim; ++i) {
-                    if (phat[i] > median) {
-                        hits += counts[i];
-                    }
-                }
-                double hop = double(hits) / double(SHOTS);
-                hops.push_back(hop);
-            }
-            double sum = std::accumulate(hops.begin(), hops.end(), 0.0);
-            double mean = sum / double(CIRCUITS);
-            double sq_sum = std::inner_product(hops.begin(), hops.end(), hops.begin(), 0.0);
-            double var = sq_sum / double(CIRCUITS) - mean * mean;
-            double se = std::sqrt(var / double(CIRCUITS));
-            if (mean > THRESHOLD) {
-                max_pass = k;
-                qv_unc = se;
-            } else {
-                break;
-            }
-        }
-        int qv = (max_pass > 0) ? (1 << max_pass) : 0;
-        std::cout << "bond_dim=" << bd
-                  << " log2(QV)=" << max_pass
-                  << " QV=" << qv
-                  << " ±" << qv_unc
-                  << "\n";
-        csv << bd << "," << qv << "," << qv_unc << "\n";
+    std::cerr << "[INFO] n_qubits="  << n_qubits
+              << "  bd_min="   << bd_min
+              << "  bd_max="   << bd_max
+              << "  circuits=" << CIRCUITS
+              << "  shots="    << SHOTS
+              << "  qasm_dir=" << qasm_dir << "\n";
+
+    const std::string csv_path = "bond_vs_qv.csv";
+    std::ofstream csv(csv_path);
+    if (!csv) {
+        std::cerr << "[ERROR] Cannot open " << csv_path << "\n";
+        return 1;
     }
+    csv << "bond_dimension,mean_hop,std_error\n";
+
+    size_t dim = size_t(1) << n_qubits;
+    std::vector<ValType> p_sv(dim);
+    std::vector<bool> is_heavy(dim);
+
+    // Loop over bond dimensions
+    for (int bd = bd_min; bd <= bd_max; ++bd) {
+        std::cerr << "[INFO] Scanning bond_dim=" << bd << "\n";
+        std::vector<ValType> hops;
+        hops.reserve(CIRCUITS);
+
+        // Loop over circuits
+        for (int c = 0; c < CIRCUITS; ++c) {
+            // Build filename QV_<n_qubits>q_<ccc>.qasm
+            std::ostringstream fn;
+            fn << qasm_dir << "/QV_" << n_qubits << "q_"
+               << std::setw(3) << std::setfill('0') << c
+               << ".qasm";
+            fs::path path = fn.str();
+            if (!fs::exists(path)) {
+                std::cerr << "[ERROR] Missing file: " << path << "\n";
+                return 1;
+            }
+
+            // --- Exact SV sample to build p_sv ---
+            qasm_parser p_sv_parser;
+            p_sv_parser.load_qasm_file(path.string());
+            auto state_sv = BackendManager::create_state("CPU", n_qubits, "SV");
+            auto counts_sv = p_sv_parser.execute(state_sv, "", "", SHOTS);
+
+            std::fill(p_sv.begin(), p_sv.end(), 0.0);
+            for (auto &ent : *counts_sv) {
+                int idx = std::stoi(ent.first, nullptr, 2);
+                p_sv[idx] = ent.second / ValType(SHOTS);
+            }
+
+            // Compute median of p_sv
+            std::vector<ValType> sorted = p_sv;
+            std::sort(sorted.begin(), sorted.end());
+            ValType median = (dim & 1)
+                           ? sorted[dim/2]
+                           : 0.5*(sorted[dim/2 - 1] + sorted[dim/2]);
+
+            // Mark heavy outputs
+            for (size_t i = 0; i < dim; ++i) {
+                is_heavy[i] = (p_sv[i] > median);
+            }
+
+            // --- TN sample with bond=bd ---
+            qasm_parser p_tn_parser;
+            p_tn_parser.load_qasm_file(path.string());
+            auto state_tn = BackendManager::create_state("CPU",
+                                                         n_qubits,
+                                                         "TN",
+                                                         bd);
+            auto counts_tn = p_tn_parser.execute(state_tn, "", "", SHOTS);
+
+            int heavy_hits = 0;
+            for (auto &ent : *counts_tn) {
+                int idx = std::stoi(ent.first, nullptr, 2);
+                if (is_heavy[idx]) heavy_hits += ent.second;
+            }
+            ValType hop = heavy_hits / ValType(SHOTS);
+            hops.push_back(hop);
+            std::cerr << "  circuit=" << c << "  hop=" << hop << "\n";
+        }
+
+        // Compute mean & standard error
+        ValType sum = 0, sum_sq = 0;
+        for (auto h : hops) {
+            sum    += h;
+            sum_sq += h*h;
+        }
+        ValType mean = sum / CIRCUITS;
+        ValType var  = (CIRCUITS>1)
+                     ? (sum_sq - CIRCUITS*mean*mean)/(CIRCUITS-1)
+                     : 0.0;
+        ValType stderr = std::sqrt(var / CIRCUITS);
+
+        csv << bd << "," << mean << "," << stderr << "\n";
+        std::cerr << "[RESULT] bd=" << bd
+                  << "  mean_hop=" << mean
+                  << "  stderr="  << stderr << "\n";
+    }
+
     csv.close();
     return 0;
 }
+
