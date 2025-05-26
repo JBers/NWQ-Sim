@@ -32,14 +32,16 @@ namespace NWQSim
             dim = IdxType(1) << n_qubits;
             MaxDim = max_dim;
             Cutoff = sv_cutoff;
+	    n_cpu = 1;
+	    cpu_mem = 0.0;
         
-            SAFE_ALOC_HOST(sv_real, sv_size);
-            SAFE_ALOC_HOST(sv_imag, sv_size);
-            memset(sv_real, 0, sv_size);
-            memset(sv_imag, 0, sv_size);
-            sv_real[0] = 1.0;
-            SAFE_ALOC_HOST(m_real, sv_size + sizeof(ValType));
-            memset(m_real, 0, sv_size + sizeof(ValType));
+//            SAFE_ALOC_HOST(sv_real, sv_size);
+//            SAFE_ALOC_HOST(sv_imag, sv_size);
+//            memset(sv_real, 0, sv_size);
+//            memset(sv_imag, 0, sv_size);
+//            sv_real[0] = 1.0;
+//            SAFE_ALOC_HOST(m_real, sv_size + sizeof(ValType));
+//            memset(m_real, 0, sv_size + sizeof(ValType));
         
             sites = itensor::SpinHalf(int(n_qubits),{"ConserveQNs=", false});
             auto init_state = itensor::InitState(sites,"Up");
@@ -50,20 +52,20 @@ namespace NWQSim
         ~TN_CPU()
         {
             // Release for CPU side
-            SAFE_FREE_HOST(sv_real);
-            SAFE_FREE_HOST(sv_imag);
-            SAFE_FREE_HOST(m_real);
-            SAFE_FREE_HOST(results);
+//            SAFE_FREE_HOST(sv_real);
+//            SAFE_FREE_HOST(sv_imag);
+//            SAFE_FREE_HOST(m_real);
+//            SAFE_FREE_HOST(results);
         }
 
         void reset_state() override
         {
             // Reset CPU input & output
-            memset(sv_real, 0, sv_size);
-            memset(sv_imag, 0, sv_size);
-            memset(m_real, 0, sv_size + sizeof(ValType));
+//            memset(sv_real, 0, sv_size);
+//            memset(sv_imag, 0, sv_size);
+//            memset(m_real, 0, sv_size + sizeof(ValType));
             // State Vector initial state [0..0] = 1
-            sv_real[0] = 1.;
+//            sv_real[0] = 1.;
 	    
             // MPS initial state |00..0>
             sites = itensor::SpinHalf(int(n_qubits),{"ConserveQNs=", false});
@@ -236,7 +238,7 @@ namespace NWQSim
                 }
 
 #ifdef PURITY_CHECK
-                Purity_Check(g, i);
+                //Purity_Check(g, i);
 #endif
             }
             if (Config::PRINT_SIM_TRACE)
